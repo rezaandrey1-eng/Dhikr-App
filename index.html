@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Dhikr - Digital Tasbih & Remembrance</title>
+    <meta name="description" content="A beautiful, quiet, and intuitive digital Dhikr counter for daily remembrance.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        arabic: ['Amiri', 'serif'],
+                    },
+                    colors: {
+                        emerald: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite ease-in-out',
+                        'float-up': 'floatUp 0.6s ease-out forwards',
+                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 15px rgba(16, 185, 129, 0.2)' },
+                            '50%': { boxShadow: '0 0 25px rgba(16, 185, 129, 0.45)' },
+                        },
+                        floatUp: {
+                            '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                            '100%': { opacity: '0', transform: 'translateY(-35px) scale(1.3)' },
+                        },
+                        popIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.9)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #062016 0%, #0b3425 40%, #071f16 100%);
+            min-height: 100vh;
+            color: #ecfdf5;
+        }
+
+        .glass-card {
+            background: rgba(18, 53, 39, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(52, 211, 153, 0.15);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .glass-header {
+            background: rgba(6, 32, 22, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(52, 211, 153, 0.12);
+        }
+
+        .completed-card {
+            background: linear-gradient(135deg, rgba(20, 83, 45, 0.8) 0%, rgba(6, 46, 22, 0.9) 100%);
+            border: 1px solid rgba(74, 222, 128, 0.4) !important;
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(6, 32, 22, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(52, 211, 153, 0.3);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 211, 153, 0.5);
+        }
+
+        /* Ripple effect */
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+        .ripple-effect {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(0);
+            animation: rippleAnim 0.4s linear;
+            pointer-events: none;
+        }
+        @keyframes rippleAnim {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Ambient Glow behind cards */
+        .ambient-glow {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col font-sans relative selection:bg-emerald-500 selection:text-white">
+
+    <!-- Ambient background lights -->
+    <div class="ambient-glow top-0 left-1/4 -translate-x-1/2"></div>
+    <div class="ambient-glow bottom-10 right-10"></div>
+
+    <!-- Canvas for Confetti -->
+    <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+    <!-- Header -->
+    <header class="glass-header text-white py-4 px-4 sm:px-6 sticky top-0 z-40 transition-all duration-300">
+        <div class="max-w-3xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-900/50">
+                    <span class="text-xl font-bold">📿</span>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-200 via-teal-100 to-white">
+                        Daily Dhikr
+                    </h1>
+                    <p class="text-emerald-400/80 text-xs sm:text-sm">Remember Allah, hearts find peace</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Streak Badge -->
+                <div class="flex items-center gap-1.5 bg-emerald-950/70 border border-emerald-500/30 px-3 py-1.5 rounded-full shadow-inner" title="Daily Streak">
+                    <span class="text-amber-400 text-sm animate-bounce">🔥</span>
+                    <span id="streakCount" class="font-bold text-emerald-100 text-sm">0</span>
+                    <span class="text-xs text-emerald-400/70 hidden xs:inline">days</span>
+                </div>
+
+                <!-- Add Custom Dhikr Button -->
+                <button id="addDhikrBtn" class="text-emerald-300 hover:text-white transition p-2.5 rounded-xl bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/40 focus:outline-none focus:ring-2 focus:ring-emerald-400" title="Add New Dhikr">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+
+
+                <!-- Reset All Button -->
+                <button id="resetAllBtn" class="text-emerald-300 hover:text-rose-300 transition p-2.5 rounded-xl bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/40 focus:outline-none focus:ring-2 focus:ring-emerald-400" title="Reset all counters">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-3xl w-full mx-auto p-4 sm:p-6 space-y-5 pb-28 z-10">
+        
+        <!-- Total Progress Summary Banner -->
+        <div class="glass-card rounded-2xl p-5 border border-emerald-500/20 relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <span class="text-xs uppercase font-bold tracking-widest text-emerald-400">Daily Completion</span>
+                    <h2 id="overallProgressText" class="text-2xl font-extrabold text-white mt-0.5">0 of 0 Completed</h2>
+                    <p class="text-xs text-emerald-300/70 mt-1">Tip: Click any item card or press <kbd class="px-1.5 py-0.5 text-xs bg-emerald-900/80 border border-emerald-600/40 rounded text-emerald-200">Spacebar</kbd> to count!</p>
+                </div>
+                <div class="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4">
+                    <div class="text-right">
+                        <span id="overallPercentage" class="text-3xl font-black text-emerald-300">0%</span>
+                    </div>
+                    <div class="w-14 h-14 relative flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-emerald-950/80" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="overallCircleProgress" class="text-emerald-400 transition-all duration-500 ease-out" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <button onclick="setFilter('all')" id="filter-all" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition bg-emerald-600 text-white shadow-md shadow-emerald-900/40">All Dhikr</button>
+            <button onclick="setFilter('active')" id="filter-active" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition bg-emerald-950/50 text-emerald-300/80 hover:bg-emerald-900/50 border border-emerald-800/40">In Progress</button>
+            <button onclick="setFilter('completed')" id="filter-completed" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition bg-emerald-950/50 text-emerald-300/80 hover:bg-emerald-900/50 border border-emerald-800/40">Completed</button>
+        </div>
+        
+        <!-- Dhikr Items Container -->
+        <div id="dhikrContainer" class="space-y-4">
+            <!-- Items will be injected here by JS -->
+        </div>
+
+    </main>
+
+    <!-- Modal for Edit / Add Dhikr -->
+    <div id="customDhikrModal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden flex items-center justify-center z-50 px-4 transition-all duration-300">
+        <div class="glass-card rounded-2xl p-6 w-full max-w-md border border-emerald-500/30 shadow-2xl animate-pop-in">
+            <div class="flex justify-between items-center mb-5 border-b border-emerald-800/50 pb-3">
+                <h3 id="modalTitle" class="text-xl font-bold text-white">Edit Dhikr</h3>
+                <button onclick="closeModal()" class="text-emerald-400 hover:text-white text-xl p-1">&times;</button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-emerald-300 uppercase tracking-wider mb-1">Dhikr Name (Transliteration / English)</label>
+                    <input type="text" id="editDhikrText" class="w-full px-4 py-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-xl text-white placeholder-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition" placeholder="e.g., Astaghfirullah">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-emerald-300 uppercase tracking-wider mb-1">Arabic Text (Optional)</label>
+                    <input type="text" id="editDhikrArabic" dir="rtl" class="w-full px-4 py-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-xl text-white font-arabic text-lg placeholder-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition" placeholder="أَسْتَغْفِرُ ٱللَّٰهَ">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-emerald-300 uppercase tracking-wider mb-1">Meaning / Translation</label>
+                    <input type="text" id="editDhikrMeaning" class="w-full px-4 py-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-xl text-white placeholder-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition" placeholder="e.g., I seek forgiveness from Allah">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-emerald-300 uppercase tracking-wider mb-1">Target Count</label>
+                    <input type="number" id="editDhikrTarget" class="w-full px-4 py-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-xl text-white placeholder-emerald-600 focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition" value="100" min="1" max="100000">
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end space-x-3">
+                <button onclick="closeModal()" class="px-5 py-2.5 text-emerald-300 font-medium hover:bg-emerald-900/50 rounded-xl transition">Cancel</button>
+                <button id="saveEditBtn" class="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-emerald-950 font-bold rounded-xl shadow-lg shadow-emerald-900/50 transition transform active:scale-95">Save Dhikr</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden flex items-center justify-center z-50 px-4 transition-all duration-300">
+        <div class="glass-card rounded-2xl p-6 w-full max-w-sm border border-emerald-500/30 shadow-2xl animate-pop-in text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-900/50 border border-rose-500/40 text-rose-400 flex items-center justify-center mx-auto mb-3 text-2xl">
+                ⚠️
+            </div>
+            <h3 id="confirmTitle" class="text-lg font-bold text-white">Reset Counter?</h3>
+            <p id="confirmMessage" class="text-sm text-emerald-300/80 mt-2">Are you sure you want to reset this counter to zero?</p>
+            
+            <div class="mt-6 flex justify-center space-x-3">
+                <button id="confirmCancelBtn" class="px-4 py-2 text-emerald-300 font-medium hover:bg-emerald-900/50 rounded-xl transition">Cancel</button>
+                <button id="confirmOkBtn" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg transition">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Default Dhikr Data ---
+        const defaultDhikrList = [
+            { id: 'subhanallah', text: 'Subhanallah', arabic: 'سُبْحَانَ ٱللَّٰهِ', meaning: 'Glory be to Allah', target: 33, count: 0, isCustom: false },
+            { id: 'alhamdulillah', text: 'Alhamdulillah', arabic: 'ٱلْحَمْدُ لِلَّٰهِ', meaning: 'Praise be to Allah', target: 33, count: 0, isCustom: false },
+            { id: 'allahuakbar', text: 'Allahu Akbar', arabic: 'ٱللَّٰهُ أَكْبَرُ', meaning: 'Allah is the Greatest', target: 34, count: 0, isCustom: false },
+            { id: 'la_ilaha', text: 'La ilaha illallah', arabic: 'لَا إِلٰهَ إِلَّا ٱللَّٰهُ', meaning: 'There is no deity but Allah', target: 100, count: 0, isCustom: false },
+            { id: 'astaghfirullah', text: 'Astaghfirullah', arabic: 'أَسْتَغْفِرُ ٱللَّٰهَ', meaning: 'I seek forgiveness from Allah', target: 100, count: 0, isCustom: false }
+        ];
+
+        let dhikrData = [];
+        let streakData = { count: 0, lastDate: null };
+
+        let activeFilter = 'all';
+        let currentEditingId = null;
+        let isCreatingNew = false;
+        let confirmCallback = null;
+
+        // DOM Elements
+        const container = document.getElementById('dhikrContainer');
+        const resetAllBtn = document.getElementById('resetAllBtn');
+        const addDhikrBtn = document.getElementById('addDhikrBtn');
+
+        
+        const modal = document.getElementById('customDhikrModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const editDhikrText = document.getElementById('editDhikrText');
+        const editDhikrArabic = document.getElementById('editDhikrArabic');
+        const editDhikrMeaning = document.getElementById('editDhikrMeaning');
+        const editDhikrTarget = document.getElementById('editDhikrTarget');
+        const saveEditBtn = document.getElementById('saveEditBtn');
+        
+        const streakCountEl = document.getElementById('streakCount');
+        const overallProgressText = document.getElementById('overallProgressText');
+        const overallPercentage = document.getElementById('overallPercentage');
+        const overallCircleProgress = document.getElementById('overallCircleProgress');
+
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmTitle = document.getElementById('confirmTitle');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmOkBtn = document.getElementById('confirmOkBtn');
+        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+
+        // Initialize App
+        function init() {
+            loadData();
+            loadStreak();
+
+            render();
+            setupGlobalListeners();
+        }
+
+
+
+
+
+        // --- Streak Logic ---
+        function loadStreak() {
+            const saved = localStorage.getItem('dhikrStreak');
+            if (saved) {
+                try {
+                    streakData = JSON.parse(saved);
+                } catch (e) {
+                    streakData = { count: 0, lastDate: null };
+                }
+            }
+            checkStreak(false);
+        }
+
+        function checkStreak(isAction = false) {
+            const todayStr = new Date().toDateString(); 
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+
+            if (streakData.lastDate === todayStr) {
+                // Already maintained today
+            } else if (streakData.lastDate === yesterdayStr) {
+                if (isAction) {
+                    streakData.count++;
+                    streakData.lastDate = todayStr;
+                }
+            } else {
+                if (isAction) {
+                    streakData.count = 1; 
+                    streakData.lastDate = todayStr;
+                } else {
+                    if (streakData.lastDate && streakData.lastDate !== todayStr && streakData.lastDate !== yesterdayStr) {
+                        streakData.count = 0;
+                    }
+                }
+            }
+            
+            localStorage.setItem('dhikrStreak', JSON.stringify(streakData));
+            streakCountEl.textContent = streakData.count;
+        }
+
+        // --- Data Handling ---
+        function loadData() {
+            const saved = localStorage.getItem('dhikrAppData');
+            if (saved) {
+                try {
+                    dhikrData = JSON.parse(saved);
+                } catch (e) {
+                    dhikrData = JSON.parse(JSON.stringify(defaultDhikrList));
+                }
+            } else {
+                dhikrData = JSON.parse(JSON.stringify(defaultDhikrList));
+            }
+            
+            const savedDate = localStorage.getItem('dhikrLastDate');
+            const todayStr = new Date().toDateString();
+            if (savedDate !== todayStr) {
+                dhikrData.forEach(item => item.count = 0);
+                saveData();
+                localStorage.setItem('dhikrLastDate', todayStr);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('dhikrAppData', JSON.stringify(dhikrData));
+            localStorage.setItem('dhikrLastDate', new Date().toDateString());
+        }
+
+        function triggerVibration(type = 'light') {
+            if (!navigator.vibrate) return;
+            if (type === 'light') navigator.vibrate(25);
+            if (type === 'heavy') navigator.vibrate([40, 30, 60]);
+        }
+
+        // --- Filter Logic ---
+        function setFilter(filter) {
+            activeFilter = filter;
+            ['all', 'active', 'completed'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition bg-emerald-500 text-emerald-950 shadow-md shadow-emerald-900/40";
+                } else {
+                    btn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition bg-emerald-950/50 text-emerald-300/80 hover:bg-emerald-900/50 border border-emerald-800/40";
+                }
+            });
+            render();
+        }
+
+        // --- Render UI ---
+        function render() {
+            container.innerHTML = '';
+            
+            // Calculate Total Progress
+            const totalItems = dhikrData.length;
+            const completedCount = dhikrData.filter(d => d.count >= d.target).length;
+            const overallPct = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+
+            overallProgressText.textContent = `${completedCount} of ${totalItems} Completed`;
+            overallPercentage.textContent = `${overallPct}%`;
+            overallCircleProgress.setAttribute('stroke-dasharray', `${overallPct}, 100`);
+
+            // Filter items
+            const filteredData = dhikrData.filter(item => {
+                const isComplete = item.count >= item.target;
+                if (activeFilter === 'completed') return isComplete;
+                if (activeFilter === 'active') return !isComplete;
+                return true;
+            });
+
+            if (filteredData.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-emerald-400/60 glass-card rounded-2xl">
+                        <p class="text-3xl mb-2">✨</p>
+                        <p class="font-medium">No Dhikr items found in this view.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            filteredData.forEach((item) => {
+                const progress = Math.min((item.count / item.target) * 100, 100);
+                const isComplete = item.count >= item.target;
+                
+                const card = document.createElement('div');
+                card.id = `card-${item.id}`;
+                card.className = `glass-card rounded-2xl p-5 transition-all duration-300 relative ripple cursor-pointer select-none ${isComplete ? 'completed-card' : ''}`;
+                
+                // Allow tapping anywhere on card to count
+                card.onclick = (e) => {
+                    // Prevent tap trigger if clicking action icons
+                    if (e.target.closest('button')) return;
+                    createRipple(e, card);
+                    createPlusOneEffect(e, card);
+                    incrementCounter(item.id);
+                };
+
+                card.innerHTML = `
+                    <div class="flex flex-col gap-4">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 pr-3">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h2 class="text-lg sm:text-xl font-bold text-white tracking-tight">${item.text}</h2>
+                                    ${isComplete ? `<span class="bg-emerald-400/20 text-emerald-300 text-xs px-2.5 py-0.5 rounded-full border border-emerald-400/40 font-semibold flex items-center gap-1">✓ Done</span>` : ''}
+                                </div>
+                                ${item.arabic ? `<p class="arabic font-arabic text-2xl sm:text-3xl text-emerald-200 mt-2 mb-1 text-right leading-relaxed" dir="rtl">${item.arabic}</p>` : ''}
+                                <p class="text-xs sm:text-sm text-emerald-300/70 italic mt-1">${item.meaning || ''}</p>
+                            </div>
+                            
+                            <div class="flex items-center gap-1">
+                                <button onclick="openEditModal('${item.id}')" class="text-emerald-400/70 hover:text-emerald-200 transition p-2 hover:bg-emerald-800/40 rounded-xl" title="Edit Dhikr">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                                <button onclick="confirmReset('${item.id}')" class="text-emerald-400/70 hover:text-rose-300 transition p-2 hover:bg-rose-950/40 rounded-xl" title="Reset Counter">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </button>
+                                ${item.isCustom ? `
+                                    <button onclick="deleteDhikr('${item.id}')" class="text-emerald-400/70 hover:text-rose-400 transition p-2 hover:bg-rose-950/40 rounded-xl" title="Delete Dhikr">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-xs font-semibold">
+                                <span class="text-emerald-400/80">Progress</span>
+                                <div>
+                                    <span class="text-lg font-black ${isComplete ? 'text-emerald-300' : 'text-white'}">${item.count}</span>
+                                    <span class="text-emerald-400/60 font-medium">/ ${item.target}</span>
+                                </div>
+                            </div>
+                            <div class="w-full bg-emerald-950/80 rounded-full h-3 p-0.5 border border-emerald-800/40 overflow-hidden">
+                                <div class="bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 h-full rounded-full transition-all duration-300 ease-out shadow-sm" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Tap Button -->
+                        <div class="flex gap-2 pt-1">
+                            <button onclick="event.stopPropagation(); incrementCounter('${item.id}');" class="flex-grow py-3 px-4 bg-emerald-600/30 hover:bg-emerald-600/50 active:bg-emerald-500/70 border border-emerald-500/40 rounded-xl text-emerald-100 font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition transform active:scale-[0.98] shadow-lg shadow-emerald-950/30">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                TAP TO COUNT
+                            </button>
+                            
+                            <button onclick="event.stopPropagation(); incrementCounter('${item.id}', 10);" class="py-3 px-3.5 bg-emerald-900/40 hover:bg-emerald-800/60 active:bg-emerald-700/60 border border-emerald-700/40 rounded-xl text-emerald-300 font-semibold text-xs transition" title="Add 10 Taps">
+                                +10
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Tap ripple visual feedback
+        function createRipple(event, element) {
+            const circle = document.createElement("span");
+            const diameter = Math.max(element.clientWidth, element.clientHeight);
+            const radius = diameter / 2;
+
+            const rect = element.getBoundingClientRect();
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - rect.left - radius}px`;
+            circle.style.top = `${event.clientY - rect.top - radius}px`;
+            circle.classList.add("ripple-effect");
+
+            const existingRipple = element.getElementsByClassName("ripple-effect")[0];
+            if (existingRipple) {
+                existingRipple.remove();
+            }
+
+            element.appendChild(circle);
+        }
+
+        // Floating +1 indicator on click
+        function createPlusOneEffect(event, element) {
+            const rect = element.getBoundingClientRect();
+            const floatText = document.createElement("span");
+            floatText.textContent = "+1";
+            floatText.className = "absolute text-emerald-300 font-black text-xl pointer-events-none animate-float-up z-30 drop-shadow-md";
+            
+            floatText.style.left = `${event.clientX - rect.left - 10}px`;
+            floatText.style.top = `${event.clientY - rect.top - 20}px`;
+
+            element.appendChild(floatText);
+            setTimeout(() => floatText.remove(), 600);
+        }
+
+        // Increment logic
+        window.incrementCounter = function(id, amount = 1) {
+            const item = dhikrData.find(d => d.id === id);
+            if (item) {
+
+
+                const wasComplete = item.count >= item.target;
+                item.count += amount;
+                const isNowComplete = item.count >= item.target;
+                
+                if (!wasComplete && isNowComplete) {
+                    triggerVibration('heavy');
+
+                    triggerConfetti();
+                } else {
+                    triggerVibration('light');
+                }
+                
+                checkStreak(true); 
+                saveData();
+                render();
+            }
+        };
+
+        // --- Confirm Dialog ---
+        function confirmReset(id) {
+            const item = dhikrData.find(d => d.id === id);
+            if (!item) return;
+
+            confirmTitle.textContent = "Reset Counter?";
+            confirmMessage.textContent = `Are you sure you want to reset "${item.text}" counter back to 0?`;
+            confirmCallback = () => {
+                item.count = 0;
+                saveData();
+                render();
+            };
+            confirmModal.classList.remove('hidden');
+        }
+
+        function deleteDhikr(id) {
+            const item = dhikrData.find(d => d.id === id);
+            if (!item) return;
+
+            confirmTitle.textContent = "Delete Dhikr?";
+            confirmMessage.textContent = `Are you sure you want to delete "${item.text}"?`;
+            confirmCallback = () => {
+                dhikrData = dhikrData.filter(d => d.id !== id);
+                saveData();
+                render();
+            };
+            confirmModal.classList.remove('hidden');
+        }
+
+        // --- Modals ---
+        window.openEditModal = function(id) {
+            isCreatingNew = false;
+            currentEditingId = id;
+            const item = dhikrData.find(d => d.id === id);
+            if (item) {
+                modalTitle.textContent = "Edit Dhikr";
+                editDhikrText.value = item.text;
+                editDhikrArabic.value = item.arabic || '';
+                editDhikrMeaning.value = item.meaning || '';
+                editDhikrTarget.value = item.target;
+                modal.classList.remove('hidden');
+            }
+        };
+
+        function openAddModal() {
+            isCreatingNew = true;
+            currentEditingId = 'custom_' + Date.now();
+            modalTitle.textContent = "Add Custom Dhikr";
+            editDhikrText.value = '';
+            editDhikrArabic.value = '';
+            editDhikrMeaning.value = '';
+            editDhikrTarget.value = 100;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            confirmModal.classList.add('hidden');
+            currentEditingId = null;
+            confirmCallback = null;
+        }
+
+        // --- Global Event Listeners ---
+        function setupGlobalListeners() {
+
+            addDhikrBtn.addEventListener('click', openAddModal);
+
+            resetAllBtn.addEventListener('click', () => {
+                confirmTitle.textContent = "Reset All Counters?";
+                confirmMessage.textContent = "Are you sure you want to reset ALL Dhikr counters back to zero for today?";
+                confirmCallback = () => {
+                    dhikrData.forEach(item => item.count = 0);
+                    saveData();
+                    render();
+                    triggerVibration('heavy');
+                };
+                confirmModal.classList.remove('hidden');
+            });
+
+            confirmOkBtn.addEventListener('click', () => {
+                if (confirmCallback) confirmCallback();
+                closeModal();
+            });
+            confirmCancelBtn.addEventListener('click', closeModal);
+
+            saveEditBtn.addEventListener('click', () => {
+                const text = editDhikrText.value.trim() || 'Custom Dhikr';
+                const arabic = editDhikrArabic.value.trim();
+                const meaning = editDhikrMeaning.value.trim();
+                const target = parseInt(editDhikrTarget.value) || 100;
+
+                if (isCreatingNew) {
+                    dhikrData.push({
+                        id: currentEditingId,
+                        text: text,
+                        arabic: arabic,
+                        meaning: meaning,
+                        target: target,
+                        count: 0,
+                        isCustom: true
+                    });
+                } else {
+                    const item = dhikrData.find(d => d.id === currentEditingId);
+                    if (item) {
+                        item.text = text;
+                        item.arabic = arabic;
+                        item.meaning = meaning;
+                        item.target = target;
+                    }
+                }
+                saveData();
+                render();
+                closeModal();
+            });
+
+            // Keyboard navigation: Spacebar increments first active dhikr
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    if (dhikrData.length > 0) {
+                        const firstIncomplete = dhikrData.find(d => d.count < d.target) || dhikrData[0];
+                        incrementCounter(firstIncomplete.id);
+                    }
+                }
+            });
+        }
+
+        // --- Canvas Lightweight Confetti Celebration ---
+        function triggerConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#34d399', '#10b981', '#6ee7b7', '#f59e0b', '#38bdf8', '#ffffff'];
+
+            for (let i = 0; i < 45; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    size: Math.random() * 6 + 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    opacity: 1
+                });
+            }
+
+            let frame = 0;
+            function renderConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let alive = false;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.25; // gravity
+                    p.opacity -= 0.025;
+
+                    if (p.opacity > 0) {
+                        alive = true;
+                        ctx.globalAlpha = p.opacity;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+
+                if (alive && frame < 50) {
+                    frame++;
+                    requestAnimationFrame(renderConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            renderConfetti();
+        }
+
+        // Run App
+        init();
+    </script>
+</body>
+</html>
